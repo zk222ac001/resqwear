@@ -1,0 +1,7 @@
+streamlit
+pydeck
+plotly
+websockets
+pydantic
+aiosqlite
+python-dateutil
