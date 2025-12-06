@@ -1,13 +1,18 @@
+# Imports the asynchronous SQLite client library.
+# Allows non-blocking DB operations inside async functions.
 import aiosqlite
 from datetime import datetime
+# Type hints for structured return values
 from typing import List, Dict, Any, Optional
+import sys, os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = "resqwear.sqlite"
-
 class DB:
     def __init__(self, path: str = DB_PATH):
         self.path = path
 
     async def init(self):
+      # Enables Write-Ahead Logging for performance and concurrency.
         async with aiosqlite.connect(self.path) as db:
             await db.executescript("""
             PRAGMA journal_mode=WAL;
@@ -52,6 +57,7 @@ class DB:
 
     async def upsert_device(self, device_id: str, name: str, scenario: str, status: str, last_seen: datetime):
         async with aiosqlite.connect(self.path) as db:
+          # device_id already exists, update the fields.
             await db.execute("""
               INSERT INTO devices(device_id,name,scenario,status,last_seen)
               VALUES(?,?,?,?,?)
@@ -93,19 +99,23 @@ class DB:
         async with aiosqlite.connect(self.path) as db:
             await db.execute("UPDATE alerts SET resolved=1 WHERE alert_id=?", (alert_id,))
             await db.commit()
-
+    # Lists all devices in the database.
     async def list_devices(self) -> List[Dict[str, Any]]:
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
             cur = await db.execute("SELECT * FROM devices ORDER BY name")
             return [dict(r) for r in await cur.fetchall()]
-
+    
+    # List Active Alerts
     async def active_alerts(self) -> List[Dict[str, Any]]:
         async with aiosqlite.connect(self.path) as db:
+            # Enables JSON-like row dictionaries.
             db.row_factory = aiosqlite.Row
             cur = await db.execute("SELECT * FROM alerts WHERE resolved=0 ORDER BY ts DESC")
+            # convert rows → list of dicts.
             return [dict(r) for r in await cur.fetchall()]
-
+    
+    # Return Last Known GPS for a Device .................................................
     async def last_known(self, device_id: str) -> Optional[Dict[str, Any]]:
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
@@ -113,7 +123,7 @@ class DB:
               "SELECT * FROM positions WHERE device_id=? ORDER BY ts DESC LIMIT 1", (device_id,))
             r = await cur.fetchone()
             return dict(r) if r else None
-
+    # Return N Hours of Position History
     async def hourly_positions(self, device_id: str, hours: int = 24) -> List[Dict[str, Any]]:
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
@@ -124,7 +134,7 @@ class DB:
               ORDER BY ts
             """, (device_id, f"-{hours}"))
             return [dict(r) for r in await cur.fetchall()]
-
+# Return Temperature Time Series (last N minutes)
     async def temps_series(self, device_id: str, minutes: int = 120) -> List[Dict[str, Any]]:
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row

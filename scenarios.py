@@ -1,6 +1,18 @@
 import random
 from dataclasses import dataclass
-
+'''
+This @dataclass automatically creates:
+__init__
+__repr__
+field handling
+The class describes a scenario (hiking, skiing, etc.) with:
+name — text name of scenario.
+base_speed_kph — average speed for the scenario.
+speed_jitter — how much speed randomly varies.
+temp_base — typical temperature.
+temp_jitter — randomness added to temperature.
+drift_m — how many meters the simulated person moves each “tick”.
+'''
 @dataclass
 class ScenarioConfig:
     name: str
@@ -10,6 +22,12 @@ class ScenarioConfig:
     temp_jitter: float
     drift_m: float  # movement intensity (meters) per tick
 
+'''
+Hiking → slower movement, mild temp
+Skiing → fast movement, cold, lots of drift
+Climbing → slow movement, small drift
+Sailing → medium speed, large drift
+'''
 SCENARIOS = {
     "hiking":   ScenarioConfig("hiking",   base_speed_kph=4.5,  speed_jitter=1.2, temp_base=12.0, temp_jitter=0.6, drift_m=55),
     "skiing":   ScenarioConfig("skiing",   base_speed_kph=18.0, speed_jitter=6.0, temp_base=-2.0, temp_jitter=0.9, drift_m=140),
@@ -17,6 +35,15 @@ SCENARIOS = {
     "sailing":  ScenarioConfig("sailing",  base_speed_kph=10.0, speed_jitter=3.5, temp_base=14.0, temp_jitter=0.7, drift_m=120),
 }
 
+'''
+cfg → one of the scenarios above
+lat, lon → current GPS coordinates
+And returns:
+new latitude
+new longitude
+simulated speed
+simulated temperature
+'''
 def next_step(cfg: ScenarioConfig, lat: float, lon: float):
     # tiny “geo drift” (not geodesically perfect—good enough for simulation)
     def meters_to_deg(m: float):  # rough: ~111_000 m per degree latitude

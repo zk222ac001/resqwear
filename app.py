@@ -3,18 +3,19 @@ import json
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
+import sys, os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 import pydeck as pdk
 import websockets
-
 from db import DB
 from models import EventType, AlertType
 from sim_manager import SimulatorManager
 from scenarios import SCENARIOS
-from rbac import login
+from rbac import login ,require_role
 
 # --------------------------------------------------------
 # CONFIG
@@ -23,7 +24,7 @@ st.set_page_config(page_title="ResQWear — Emergency Monitoring", layout="wide"
 
 BASE_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = BASE_DIR / "assets"
-LOGO_PATH = ASSETS_DIR / "resqwear_logo.svg"
+LOGO_PATH = ASSETS_DIR / "resqwear_logo.jpg"
 
 # --------------------------------------------------------
 # LOGO LOADER
@@ -37,13 +38,24 @@ def load_logo_bytes():
         return None
 
 logo_bytes = load_logo_bytes()
-
 # --------------------------------------------------------
 # LOGIN
 # --------------------------------------------------------
 user = login()
+
+# STOP THE APP UNTIL USER IS LOGGED IN
 if not user:
     st.stop()
+
+# Only runs after successful login
+st.title("Dashboard")
+
+if user["role"] == "operator":
+    st.write("Operator tools: tracking, alerts, sensors...")
+
+if user["role"] == "dispatcher":
+    require_role("dispatcher")
+    st.write("Dispatcher tools: emergency overview, incident map...")
 
 # --------------------------------------------------------
 # DB connection
@@ -55,7 +67,6 @@ def get_db():
     return db
 
 db = get_db()
-
 # --------------------------------------------------------
 # Simulator manager (only started once)
 # --------------------------------------------------------
@@ -93,7 +104,6 @@ def ensure_ws_listener():
     st.session_state["ws_thread_started"] = True
 
 ensure_ws_listener()
-
 # --------------------------------------------------------
 # HEADER
 # --------------------------------------------------------
@@ -113,7 +123,6 @@ with col_title:
 # SIDEBAR
 # --------------------------------------------------------
 st.sidebar.markdown(f"### User: {user['role'].upper()}")
-
 # Dispatcher-only controls
 if user["role"] == "dispatcher":
     st.sidebar.markdown("## Simulation Control")
@@ -146,29 +155,27 @@ if user["role"] == "dispatcher":
 
         asyncio.run(db.upsert_alert(alert_id, selected_id, alert_type, alert_msg, 5, ts, False))
         st.sidebar.success("SOS sent.")
-
 # --------------------------------------------------------
 # TABS
 # --------------------------------------------------------
-tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Live Map", "Temperature", "Alerts"])
-
+tab1, tab2, tab3, tab4 = st.tabs(["Overview", 
+                                  "Live Map",
+                                  "Temperature",
+                                  "Alerts"])
 # ========================================================
 # TAB 1 — OVERVIEW
 # ========================================================
 with tab1:
     st.subheader("Active Devices")
-
     devices = asyncio.run(db.list_devices())
     df_dev = pd.DataFrame(devices)
-
     if not df_dev.empty:
         df_dev["last_seen"] = pd.to_datetime(df_dev["last_seen"])
-        df_dev["fresh"] = (datetime.now(timezone.utc) - df_dev["last_seen"]).dt.total_seconds() < 90
+        df_dev["fresh"] = (datetime.now(timezone.utc) - df_dev["last_seen"]).dt.total_seconds() < 90 # type: ignore
 
         st.dataframe(df_dev, use_container_width=True)
     else:
         st.info("No devices connected.")
-
     st.subheader("Recent WebSocket Events")
 
     events = pd.DataFrame(st.session_state.get("ws_events", [])[-40:])
@@ -176,7 +183,6 @@ with tab1:
         st.dataframe(events, use_container_width=True)
     else:
         st.info("Waiting for simulator events...")
-
 # ========================================================
 # TAB 2 — LIVE MAP
 # ========================================================
@@ -195,7 +201,6 @@ with tab2:
         if last:
             points = pd.DataFrame(traj if traj else [last])
             view = pdk.ViewState(latitude=last["lat"], longitude=last["lon"], zoom=12)
-
             layer = pdk.Layer(
                 "ScatterplotLayer",
                 data=points,
@@ -203,7 +208,6 @@ with tab2:
                 get_fill_color="[255, 50, 0, 200]",
                 get_radius=90,
             )
-
             st.pydeck_chart(
                 pdk.Deck(
                     layers=[layer],
@@ -211,7 +215,6 @@ with tab2:
                     tooltip={"text": "{device_id}\n{ts}"} # type: ignore
                 )
             )
-
             st.markdown(f"**Last seen:** {last['lat']:.5f}, {last['lon']:.5f} — {last['ts']}")
         else:
             st.info("No location data yet.")
@@ -227,7 +230,6 @@ with tab3:
     else:
         selected = st.selectbox("Device", [f"{d['name']} ({d['device_id']})" for d in devices], key="temp_device")
         dev_id = next(d["device_id"] for d in devices if f"{d['name']} ({d['device_id']})" == selected)
-
         series = asyncio.run(db.temps_series(dev_id, minutes=240))
 
         if series:
