@@ -34,7 +34,7 @@ Starter som program kører text prompt i terminalen
 
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/2a4be6f6-bb11-4070-8fab-26163f85fdf1" />
 
-# Login as a operator1
+# Login som operator1
 
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/941655b5-bdfc-4641-bd20-93d281a01580" />
 
@@ -44,4 +44,11 @@ Starter som program kører text prompt i terminalen
 
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/9444c104-2c50-4d55-b59a-2cb6c3fa9186" />
 
+# Login som dispatcher 
+
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/f2ddcdb6-09c1-4a71-a188-62aa88dc66d5" />
+
+## Run som Command for Docker containarizarion:
+docker-compose build
+docker-compose up
 
