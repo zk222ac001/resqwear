@@ -1,3 +1,5 @@
+<img width="1189" height="635" alt="image" src="https://github.com/user-attachments/assets/a44bba5a-2cd2-4eb4-b662-44051ad2529e" />
+
 ## ResQWear System MOCK Simulation 
 # 1. Brugerinterface / Aktivering
 Manuel aktiveringsknap integreret i tøjet.
